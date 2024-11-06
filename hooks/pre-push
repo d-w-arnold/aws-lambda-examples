@@ -1,0 +1,37 @@
+#!/bin/bash
+
+black="black --line-length 120"
+pylint="pylint --fail-under=9.9 --rcfile=../.pylintrc"
+lambda_function_paths="$(find . -name "lambda_function.py")"
+paths="*.py ${lambda_function_paths}"
+protected_branch='main'
+
+# Check if we actually have commits to push
+commits=$(git log @\{u\}..)
+if [ -z "$commits" ]; then
+  echo "No new commits to be pushed."
+  exit 0
+fi
+
+current_branch=$(git symbolic-ref HEAD | sed -e 's,.*/\(.*\),\1,')
+
+if [[ "${current_branch}" == "${protected_branch}" ]]; then
+  BLACK_CMD="${black} --check ${paths}" # Black command
+  echo "Running Black checks ..."
+  if $BLACK_CMD; then
+    printf "Success: %s\nBlack check passed!\n" "${BLACK_CMD}"
+  else
+    printf "Failed: %s\nBlack check failed!\n" "${BLACK_CMD}"
+    eval "${black} --diff ${paths}"
+    exit 1
+  fi
+  PYLINT_CMD="${pylint} ${paths}" # Pylint command
+  echo "Running Pylint checks ..."
+  if $PYLINT_CMD; then
+    printf "Success: %s\nPylint check passed!\n" "${PYLINT_CMD}"
+  else
+    printf "Failed: %s\nPylint check failed!\n" "${PYLINT_CMD}"
+    exit 1
+  fi
+fi
+exit 0
